@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from dorkinator import load_domains, make_entries, normalise_domain
+from triage import host_in_scope, page_text
 
 
 class DorkinatorTests(unittest.TestCase):
@@ -21,6 +22,11 @@ class DorkinatorTests(unittest.TestCase):
         entries = make_entries("example.com", "google", ["api"])
         self.assertTrue(entries[0]["url"].startswith("https://www.google.com/search?q="))
         self.assertIn("site%3Aexample.com", entries[0]["url"])
+
+    def test_triage_scope_and_html_text(self):
+        self.assertTrue(host_in_scope("api.example.com", ["example.com"]))
+        self.assertFalse(host_in_scope("example.com.attacker.test", ["example.com"]))
+        self.assertEqual(page_text(b"<h1>Public note</h1><script>secret()</script>"), "Public note")
 
 
 if __name__ == "__main__":

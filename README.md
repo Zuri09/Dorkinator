@@ -130,6 +130,35 @@ python3 dorkinator.py example.com --no-color
 
 Dorkinator does not upload domains, retain targets, or call an API. The CLI writes local export files; the browser workspace generates collections in your browser. Opening a generated link is the point at which your browser contacts Google or Bing.
 
+## Local AI triage
+
+Triage reviews **only URLs you explicitly provide** and only when their host matches a declared scope. It deliberately does not scrape Google/Bing, follow redirects, submit forms, or make a finding automatically. Ollama receives page text over `localhost` only.
+
+### The easy way: guided setup
+
+First, create a file named `urls.txt` with one **approved, public** URL per line:
+
+```text
+https://app.example.com/status
+https://docs.example.com/security
+```
+
+Then run one command. The wizard explains every field, checks that your URL file exists, and asks for confirmation before it sends any request:
+
+```bash
+python3 dorkinator.py triage --wizard
+```
+
+The default local model is `qwen2.5:7b-instruct`. The report is saved to `dorkinator-output/triage.json` and labels each item as `no_finding`, `possible_exposure`, or `review_needed`, with evidence for manual validation.
+
+### Faster flag-based mode
+
+```bash
+python3 dorkinator.py triage urls.txt \
+  --scope example.com \
+  --i-have-authorisation
+```
+
 ## Verification
 
 ```bash

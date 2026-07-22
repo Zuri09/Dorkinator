@@ -126,6 +126,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "triage":
+        import triage
+        sys.argv.pop(1)
+        return triage.main()
     args = parse_args()
     if args.no_color:
         global Fore, Style
@@ -133,7 +137,9 @@ def main() -> int:
     if args.list_categories:
         print("Available categories:", ", ".join(DORKS)); return 0
     if not args.target:
-        print("error: target is required (or use --list-categories)", file=sys.stderr); return 2
+        print("error: target is required (or use --list-categories)", file=sys.stderr)
+        print("tip: start guided local AI triage with: python3 dorkinator.py triage --wizard", file=sys.stderr)
+        return 2
     categories = list(DORKS) if args.categories == "all" else [c.strip().lower() for c in args.categories.split(",") if c.strip()]
     unknown = sorted(set(categories) - set(DORKS))
     if unknown:
