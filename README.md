@@ -2,20 +2,20 @@
 
 # DORKINATOR
 
-### Offline search-query collections for authorised reconnaissance
+### AI-powered reconnaissance and exposure triage
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](#requirements)
 [![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-unittest-22C55E)](#verification)
-[![Offline](https://img.shields.io/badge/Network-Offline%20generation-0EA5E9)](#privacy)
+[![AI](https://img.shields.io/badge/AI-Local%20Qwen-8B5CF6)](#local-ai-triage)
 
-`Google + Bing` · `TXT + CSV + JSON` · `CLI + Browser workspace`
+`AI-powered triage` · `Google + Bing` · `TXT + CSV + JSON` · `CLI + Browser workspace`
 
 </div>
 
 ---
 
-Dorkinator turns an approved domain into a focused collection of Google or Bing search links. It is designed for bug bounty, OSINT, and penetration-testing workflows where you need a repeatable, reviewable starting point.
+Dorkinator is an AI-powered reconnaissance workspace for approved bug-bounty, OSINT, and penetration-testing workflows. It generates search queries, collects in-scope results, and uses local Qwen to highlight content that merits manual exposure review.
 
 > [!IMPORTANT]
 > Use this tool only for domains you own or are explicitly authorised to assess. Generated results are leads, not findings—always validate scope, impact, and permissions.

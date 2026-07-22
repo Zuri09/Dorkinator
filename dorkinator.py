@@ -147,7 +147,7 @@ def main() -> int:
     brave_key = os.environ.get("BRAVE_SEARCH_API_KEY")
     if args.ai and args.search_provider == "brave" and not brave_key:
         print("error: Brave needs BRAVE_SEARCH_API_KEY.", file=sys.stderr); return 2
-    print(f"{Fore.CYAN}DORKINATOR{Style.RESET_ALL}  engine={args.engine}  queries=all")
+    print(f"{Fore.CYAN}DORKINATOR AI{Style.RESET_ALL}  engine={args.engine}  queries=all")
     output_dir = Path(args.output_dir)
     all_entries = []
     for domain in domains:
