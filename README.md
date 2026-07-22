@@ -1,69 +1,60 @@
-# 🎯 Dorkinator — Automated Dork Generator
+# Dorkinator
 
-✨ Stay Curious. Stay Dangerous. ✨
+An offline search-query collection generator for authorised reconnaissance, OSINT, and bug-bounty workflows.
 
----
+It generates Google or Bing links for a supplied domain, groups them by purpose, and exports a reviewable collection. It does **not** send targets to a third party; opening a generated search link is the only network action.
 
-## 🚀 What is this?
+## Quick start
 
-Dorkinator is a Python script that generates advanced Google or Bing search URLs for bug bounty, OSINT, and penetration testing — based on a huge library of dorks.  
-It saves all the generated search URLs for a given domain into a `.txt` file and prints them on screen with style.
-
----
-
-## 🧪 Features
-
-✅ Select between **Bing** and **Google**  
-✅ 40+ ready-to-go dork templates  
-✅ Prints and saves the search links  
-✅ Saves into `<domain>_dorks.txt`  
-✅ Works with a single domain or file of domains  
-✅ Colorful & clean terminal output  
-✅ Devansh-approved ✨
-
----
-
-## 🎮 Usage
-
-### 🐍 Install dependencies
 ```bash
-pip install colorama
-
-🏃 Run it
-
-Single domain:
-
+git clone https://github.com/Zuri09/Dorkinator.git
+cd Dorkinator
+python3 -m pip install -r requirements.txt
 python3 dorkinator.py example.com
+```
 
-File of domains:
+`colorama` is optional—the tool still works without it, just without terminal colour.
 
-python3 dorkinator.py domains.txt
+## Useful commands
 
-When prompted, choose:
+```bash
+# Show the available query groups
+python3 dorkinator.py --list-categories
 
-💬 Which search engine do you want to use? (bing/google):
-📄 Example Output
+# Create a focused JSON collection using Bing
+python3 dorkinator.py example.com --engine bing --categories api,cloud --format json
 
-💬 Which search engine do you want to use? (bing/google): google
+# Process a newline-delimited scope file and write CSV files elsewhere
+python3 dorkinator.py domains.txt --format csv --output-dir exports
 
-✅ You chose: Google
+# Use in CI/scripts without ANSI colour
+python3 dorkinator.py example.com --no-color
+```
 
-🔍 site:example.com
-🌐 https://www.google.com/search?q=site%3Aexample.com
+Exports default to `dorkinator-output/<domain>_dorks.txt`. TXT includes each query and URL; JSON and CSV retain domain and category metadata.
 
-📁 Saved 40 Google Search links to: example.com_dorks.txt
+## Browser workspace
 
-✨ Stay Curious. Stay Dangerous. ✨
-📂 Files Created
+Open [index.html](index.html) in a modern browser for a no-install visual workspace. It provides category selection, Google/Bing switching, direct result links, and TXT/JSON downloads. Everything runs locally in the browser.
 
-example.com_dorks.txt
+## Included categories
 
-Contains all the search URLs — one per line.
+- `surface` — indexed assets, files, and exposed technology hints
+- `cloud` — public cloud, code-hosting, and sharing services
+- `api` — API, GraphQL, OpenAPI, and documentation discovery
+- `exposure` — public indicators that merit manual review
+- `endpoints` — common application routes and error fingerprints
 
-🔗 My Socials
-💼 LinkedIn: https://www.linkedin.com/in/devanshpatelcybersecurity/
-✍️  Medium: https://medium.com/@devanshpatel930
+## Safety and responsible use
 
-❤️ Credits
-Made with ☕ and curiosity by Devansh Patel
-✨ Stay Curious. Stay Dangerous. ✨
+Only run queries for domains you own or are explicitly authorised to assess. Generated search results are leads, not findings: validate scope, impact, and permissions before interacting with any result.
+
+## Tests
+
+```bash
+python3 -m unittest -v
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
