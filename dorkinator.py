@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -92,10 +93,10 @@ def load_domains(target: str) -> list[str]:
     return domains
 
 
-def make_entries(domain: str, engine: str, categories: list[str]) -> list[dict[str, str]]:
+def make_entries(domain: str, engine: str) -> list[dict[str, str]]:
     entries = []
-    for category in categories:
-        for template in DORKS[category]:
+    for category, templates in DORKS.items():
+        for template in templates:
             query = template.format(d=domain)
             entries.append({"domain": domain, "category": category, "query": query, "url": ENGINES[engine].format(quote(query))})
     return entries
@@ -117,44 +118,65 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate search-query links for authorised reconnaissance.")
     parser.add_argument("target", nargs="?", help="A domain or a newline-delimited file of domains")
     parser.add_argument("-e", "--engine", choices=ENGINES, default="google", help="Search engine (default: google)")
-    parser.add_argument("-c", "--categories", default="all", help="Comma-separated categories, or all")
     parser.add_argument("-f", "--format", choices=("txt", "json", "csv"), default="txt", help="Export format")
     parser.add_argument("-o", "--output-dir", default="dorkinator-output", help="Directory for exports")
-    parser.add_argument("--list-categories", action="store_true", help="Show available categories and exit")
+    parser.add_argument("--ai", action="store_true", help="Searches and locally triages target-domain results; confirms you are authorised")
+    parser.add_argument("--search-provider", choices=("auto", "brave", "searxng"), default="auto", help="Search backend for --ai (default: auto)")
+    parser.add_argument("--searxng-url", default="http://127.0.0.1:8080", help="SearXNG base URL for --ai (default: http://127.0.0.1:8080)")
+    parser.add_argument("--ai-model", default="qwen2.5:7b-instruct", help="Ollama model for --ai (default: qwen2.5:7b-instruct)")
+    parser.add_argument("--ai-limit", type=int, default=20, help="Maximum URLs for --ai (default: 20)")
+    parser.add_argument("--ai-results", type=int, default=5, help="Search results per query for --ai (1-20; default: 5)")
     parser.add_argument("--no-color", action="store_true", help="Disable terminal colour")
     return parser.parse_args()
 
 
 def main() -> int:
-    if len(sys.argv) > 1 and sys.argv[1] == "triage":
-        import triage
-        sys.argv.pop(1)
-        return triage.main()
     args = parse_args()
     if args.no_color:
         global Fore, Style
         Fore = Style = type("Plain", (), {"__getattr__": lambda *_: ""})()
-    if args.list_categories:
-        print("Available categories:", ", ".join(DORKS)); return 0
     if not args.target:
-        print("error: target is required (or use --list-categories)", file=sys.stderr)
-        print("tip: start guided local AI triage with: python3 dorkinator.py triage --wizard", file=sys.stderr)
+        print("error: target is required", file=sys.stderr)
         return 2
-    categories = list(DORKS) if args.categories == "all" else [c.strip().lower() for c in args.categories.split(",") if c.strip()]
-    unknown = sorted(set(categories) - set(DORKS))
-    if unknown:
-        print(f"error: unknown categories: {', '.join(unknown)}", file=sys.stderr); return 2
+    if args.ai_limit < 1 or not 1 <= args.ai_results <= 20:
+        print("error: --ai-limit must be at least 1 and --ai-results must be 1-20", file=sys.stderr); return 2
     try:
         domains = load_domains(args.target)
     except (OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr); return 2
-    print(f"{Fore.CYAN}DORKINATOR{Style.RESET_ALL}  engine={args.engine}  categories={','.join(categories)}")
+    brave_key = os.environ.get("BRAVE_SEARCH_API_KEY")
+    if args.ai and args.search_provider == "brave" and not brave_key:
+        print("error: Brave needs BRAVE_SEARCH_API_KEY.", file=sys.stderr); return 2
+    print(f"{Fore.CYAN}DORKINATOR{Style.RESET_ALL}  engine={args.engine}  queries=all")
     output_dir = Path(args.output_dir)
+    all_entries = []
     for domain in domains:
-        entries = make_entries(domain, args.engine, categories)
+        entries = make_entries(domain, args.engine)
+        all_entries.extend(entries)
         output = output_dir / f"{domain}_dorks.{args.format}"
         write_entries(entries, output, args.format)
         print(f"{Fore.GREEN}✓{Style.RESET_ALL} {domain}: {len(entries)} queries → {output}")
+    if args.ai:
+        from search import search_entries, search_query, search_searxng
+        from triage import host_in_scope, triage_urls
+        if args.search_provider == "brave" or (args.search_provider == "auto" and brave_key):
+            if not brave_key:
+                print("error: Brave needs BRAVE_SEARCH_API_KEY.", file=sys.stderr); return 2
+            search = lambda query: search_query(query, brave_key, args.ai_results)
+            provider = "Brave"
+        else:
+            search = lambda query: search_searxng(query, args.searxng_url, args.ai_results)
+            provider = f"SearXNG ({args.searxng_url})"
+        try:
+            urls = search_entries(all_entries, search, lambda host: host_in_scope(host, domains))
+            report = triage_urls(urls, domains, args.ai_model, args.ai_limit, output_dir / "ai-triage.json")
+        except OSError as error:
+            print(f"error: {provider} search or triage failed: {error}", file=sys.stderr)
+            if args.search_provider == "auto" and not brave_key:
+                print("tip: start SearXNG locally, set BRAVE_SEARCH_API_KEY, or choose --search-provider brave.", file=sys.stderr)
+            return 2
+        possible = sum(item["verdict"] == "possible_exposure" for item in report)
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} AI triage complete: {len(urls)} in-scope result(s), {possible} possible exposure(s) → {output_dir / 'ai-triage.json'}")
     return 0
 
 

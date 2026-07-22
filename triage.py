@@ -91,80 +91,45 @@ URL: {url}\n\nSUPPLIED TEXT:\n{text}"""
     return result
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Scope-bound local Ollama triage for approved public URLs.")
-    parser.add_argument("urls", nargs="?", help="Newline-delimited URL file; only these URLs are requested")
-    parser.add_argument("--scope", action="append", help="Allowed root domain; repeat for each approved scope")
-    parser.add_argument("--model", default="qwen2.5:7b-instruct", help="Installed Ollama model (default: qwen2.5:7b-instruct)")
-    parser.add_argument("--limit", type=int, default=20, help="Maximum URLs to request (default: 20)")
-    parser.add_argument("--output", default="dorkinator-output/triage.json", help="JSON report path")
-    parser.add_argument("--i-have-authorisation", action="store_true", help="Required acknowledgement before requests are sent")
-    parser.add_argument("--wizard", action="store_true", help="Start a guided setup (recommended)")
-    return parser.parse_args()
-
-
-def ask(prompt: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    return input(f"{prompt}{suffix}: ").strip() or default
-
-
-def run_wizard(args: argparse.Namespace) -> bool:
-    print("\nDORKINATOR · LOCAL AI TRIAGE\n")
-    print("This asks only for approved public URLs, keeps AI analysis in Ollama, and does not follow redirects.\n")
-    while True:
-        urls = Path(ask("1/3 URL list file", args.urls or "urls.txt"))
-        if urls.is_file():
-            args.urls = str(urls)
-            break
-        print("  File not found. Create a text file with one URL per line, then try again.")
-    while True:
-        raw_scopes = ask("2/3 Approved root domain(s), comma-separated", ",".join(args.scope or []))
-        scopes = [scope.strip() for scope in raw_scopes.split(",") if scope.strip()]
-        if scopes:
-            args.scope = scopes
-            break
-        print("  Enter at least one approved root domain, such as example.com.")
-    args.model = ask("Model", args.model)
-    while True:
-        try:
-            args.limit = max(1, int(ask("Maximum URLs to review", str(args.limit))))
-            break
-        except ValueError:
-            print("  Enter a whole number greater than zero.")
-    args.output = ask("Report location", args.output)
-    print(f"\nReady: up to {args.limit} URL(s) → {args.output}")
-    if ask("3/3 Do you have authorisation for this scope? Type YES to continue").upper() != "YES":
-        print("Cancelled. No URLs were requested.")
-        return False
-    args.i_have_authorisation = True
-    return True
-
-
-def main() -> int:
-    args = parse_args()
-    if args.wizard or (args.urls is None and sys.stdin.isatty()):
-        if not run_wizard(args):
-            return 0
-    if not args.urls or not args.scope:
-        print("error: provide a URL list and --scope, or run: dorkinator.py triage --wizard", file=sys.stderr)
-        return 2
-    if not args.i_have_authorisation:
-        print("error: pass --i-have-authorisation only for approved scope", file=sys.stderr)
-        return 2
-    scopes = [scope.lower().strip().removeprefix("*.").rstrip(".") for scope in args.scope]
-    urls = [line.strip() for line in Path(args.urls).read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
+def triage_urls(urls: list[str], scopes: list[str], model: str, limit: int, output: Path) -> list[dict]:
     report = []
-    for url in urls[:args.limit]:
+    for url in urls[:limit]:
         try:
             text = fetch(url, scopes)
-            finding = ai_triage(url, text, args.model)
+            finding = ai_triage(url, text, model)
         except ValueError as error:
             finding = {"url": url, "verdict": "review_needed", "summary": str(error), "evidence": [], "next_step": "Check the approved scope and URL."}
         report.append(finding)
         print(f"{finding['verdict']}: {url}")
-    output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return report
+
+
+def triage_url_file(url_file: str, scopes: list[str], model: str, limit: int, output: Path) -> list[dict]:
+    urls = [line.strip() for line in Path(url_file).read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
+    return triage_urls(urls, scopes, model, limit, output)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Scope-bound local Ollama triage for approved public URLs.")
+    parser.add_argument("urls", help="Newline-delimited URL file; only these URLs are requested")
+    parser.add_argument("--scope", action="append", required=True, help="Allowed root domain; repeat for each approved scope")
+    parser.add_argument("--model", default="qwen2.5:7b-instruct", help="Installed Ollama model (default: qwen2.5:7b-instruct)")
+    parser.add_argument("--limit", type=int, default=20, help="Maximum URLs to request (default: 20)")
+    parser.add_argument("--output", default="dorkinator-output/triage.json", help="JSON report path")
+    parser.add_argument("--i-have-authorisation", action="store_true", help="Required acknowledgement before requests are sent")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if not args.i_have_authorisation:
+        print("error: pass --i-have-authorisation only for approved scope", file=sys.stderr)
+        return 2
+    scopes = [scope.lower().strip().removeprefix("*.").rstrip(".") for scope in args.scope]
+    output = Path(args.output)
+    report = triage_url_file(args.urls, scopes, args.model, args.limit, output)
     print(f"Saved {len(report)} triage records to {output}")
     return 0
 

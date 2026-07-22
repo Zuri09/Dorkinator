@@ -24,13 +24,13 @@ Dorkinator turns an approved domain into a focused collection of Google or Bing 
 
 | What you need | Dorkinator provides |
 | --- | --- |
-| Fast discovery | Focused query groups for surface, cloud, API, exposure, and endpoint discovery |
+| Fast discovery | A complete query set for surface, cloud, API, exposure, and endpoint discovery |
 | Repeatable output | Structured exports with the domain, category, query, and search URL |
 | Automation | Script-friendly flags, scope-file support, deduplication, and no-colour mode |
 | A visual workflow | A static, local browser workspace with filtering, copying, and downloads |
 | Privacy | Query generation stays on your machine; only opening a result visits a search engine |
 
-## Start in 60 seconds
+## Start here
 
 ### Requirements
 
@@ -40,11 +40,23 @@ Dorkinator turns an approved domain into a focused collection of Google or Bing 
 ```bash
 git clone https://github.com/Zuri09/Dorkinator.git
 cd Dorkinator
-python3 -m pip install -r requirements.txt
+chmod +x install.sh
+./install.sh
 python3 dorkinator.py example.com
 ```
 
 The export is written to `dorkinator-output/example.com_dorks.txt`.
+
+### Want automated AI triage?
+
+If Docker and Ollama are already installed, one command sets up the free local search and AI components:
+
+```bash
+./install.sh --ai
+python3 dorkinator.py example.com --ai
+```
+
+`install.sh --ai` pulls the local Qwen model, creates a private SearXNG secret, and starts SearXNG only on `127.0.0.1:8080`. If Docker is unavailable, the script explains how to use the optional Brave API instead.
 
 ## Choose your workflow
 
@@ -59,7 +71,6 @@ Best for a repeatable workflow, scope files, and automation.
 ```bash
 python3 dorkinator.py example.com \
   --engine bing \
-  --categories api,cloud \
   --format json
 ```
 
@@ -86,20 +97,21 @@ python3 dorkinator.py TARGET [OPTIONS]
 | --- | --- |
 | `TARGET` | A domain such as `example.com`, or a newline-delimited file of domains |
 | `-e`, `--engine` | `google` (default) or `bing` |
-| `-c`, `--categories` | Comma-separated groups, for example `api,cloud`; defaults to `all` |
 | `-f`, `--format` | `txt` (default), `csv`, or `json` |
 | `-o`, `--output-dir` | Export directory; defaults to `dorkinator-output` |
-| `--list-categories` | List available query groups and exit |
+| `--ai` | Search results and locally triage target-domain pages with Ollama |
+| `--search-provider` | `auto` (default), `searxng`, or `brave` |
+| `--searxng-url` | Local or remote SearXNG URL; defaults to `http://127.0.0.1:8080` |
+| `--ai-model` | Ollama model for AI triage; defaults to `qwen2.5:7b-instruct` |
+| `--ai-limit` | Maximum URLs to triage; defaults to `20` |
+| `--ai-results` | Results collected per generated query; defaults to `5` |
 | `--no-color` | Disable ANSI terminal colour for scripts and CI |
 
 ### Examples
 
 ```bash
-# See the available query groups
-python3 dorkinator.py --list-categories
-
-# Create a focused collection using Bing
-python3 dorkinator.py example.com --engine bing --categories api,cloud --format json
+# Generate the complete collection using Bing
+python3 dorkinator.py example.com --engine bing --format json
 
 # Process a scope file and export each domain as CSV
 python3 dorkinator.py domains.txt --format csv --output-dir exports
@@ -107,16 +119,6 @@ python3 dorkinator.py domains.txt --format csv --output-dir exports
 # Suitable for CI, pipes, and plain terminals
 python3 dorkinator.py example.com --no-color
 ```
-
-## Query categories
-
-| Group | Focus |
-| --- | --- |
-| `surface` | Indexed assets, files, and technology hints |
-| `cloud` | Public cloud, code-hosting, and sharing services |
-| `api` | API, GraphQL, OpenAPI, and documentation discovery |
-| `exposure` | Public indicators that merit manual review |
-| `endpoints` | Common application routes and error fingerprints |
 
 ## Output formats
 
@@ -132,40 +134,26 @@ Dorkinator does not upload domains, retain targets, or call an API. The CLI writ
 
 ## Local AI triage
 
-Triage reviews **only URLs you explicitly provide** and only when their host matches a declared scope. It deliberately does not scrape Google/Bing, follow redirects, submit forms, or make a finding automatically. Ollama receives page text over `localhost` only.
+Triage reviews only search results whose host matches the target scope. It deliberately does not scrape Google/Bing, follow redirects, submit forms, or make a finding automatically. Ollama receives page text over `localhost` only.
 
-### The easy way: guided setup
+### One-command AI triage
 
-First, create a file named `urls.txt` with one **approved, public** URL per line:
-
-```text
-https://app.example.com/status
-https://docs.example.com/security
-```
-
-Then run one command. The wizard explains every field, checks that your URL file exists, and asks for confirmation before it sends any request:
+By default, Dorkinator uses a free local SearXNG instance when available, or Brave Search when `BRAVE_SEARCH_API_KEY` is set. It does not scrape search-engine pages. Run `./install.sh --ai` once to prepare the local option.
 
 ```bash
-python3 dorkinator.py triage --wizard
+# Free option: start SearXNG locally, then run Dorkinator
+python3 dorkinator.py example.com --ai
 ```
 
-The default local model is `qwen2.5:7b-instruct`. The report is saved to `dorkinator-output/triage.json` and labels each item as `no_finding`, `possible_exposure`, or `review_needed`, with evidence for manual validation.
+This generates the complete query set, searches each query, discards results outside `example.com` and its subdomains, then sends remaining public page text to local Qwen. The report is saved to `dorkinator-output/ai-triage.json` and labels each item as `no_finding`, `possible_exposure`, or `review_needed` for manual validation.
 
-### Faster flag-based mode
+For SearXNG, run a self-hosted instance at `http://127.0.0.1:8080` (or pass `--searxng-url`). SearXNG documents a JSON `/search` API and supports container deployment. If you prefer Brave, set `BRAVE_SEARCH_API_KEY`; one target currently makes 36 API searches, so check your plan before running large scope files.
+
+Use `--ai-limit` to cap requests or `--ai-model` to select another installed Ollama model:
 
 ```bash
-python3 dorkinator.py triage urls.txt \
-  --scope example.com \
-  --i-have-authorisation
+python3 dorkinator.py example.com --ai --ai-limit 10 --ai-results 3
 ```
-
-## Verification
-
-```bash
-python3 -m unittest -v
-```
-
-The test suite covers domain normalisation, scope-file deduplication, unsafe path rejection, and generated URL encoding.
 
 ## License
 
