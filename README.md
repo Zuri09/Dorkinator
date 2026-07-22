@@ -1,10 +1,41 @@
-# Dorkinator
+<div align="center">
 
-An offline search-query collection generator for authorised reconnaissance, OSINT, and bug-bounty workflows.
+# DORKINATOR
 
-It generates Google or Bing links for a supplied domain, groups them by purpose, and exports a reviewable collection. It does **not** send targets to a third party; opening a generated search link is the only network action.
+### Offline search-query collections for authorised reconnaissance
 
-## Quick start
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](#requirements)
+[![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-unittest-22C55E)](#verification)
+[![Offline](https://img.shields.io/badge/Network-Offline%20generation-0EA5E9)](#privacy)
+
+`Google + Bing` · `TXT + CSV + JSON` · `CLI + Browser workspace`
+
+</div>
+
+---
+
+Dorkinator turns an approved domain into a focused collection of Google or Bing search links. It is designed for bug bounty, OSINT, and penetration-testing workflows where you need a repeatable, reviewable starting point.
+
+> [!IMPORTANT]
+> Use this tool only for domains you own or are explicitly authorised to assess. Generated results are leads, not findings—always validate scope, impact, and permissions.
+
+## At a glance
+
+| What you need | Dorkinator provides |
+| --- | --- |
+| Fast discovery | Focused query groups for surface, cloud, API, exposure, and endpoint discovery |
+| Repeatable output | Structured exports with the domain, category, query, and search URL |
+| Automation | Script-friendly flags, scope-file support, deduplication, and no-colour mode |
+| A visual workflow | A static, local browser workspace with filtering, copying, and downloads |
+| Privacy | Query generation stays on your machine; only opening a result visits a search engine |
+
+## Start in 60 seconds
+
+### Requirements
+
+- Python 3.9 or later
+- `colorama` for optional terminal colour
 
 ```bash
 git clone https://github.com/Zuri09/Dorkinator.git
@@ -13,48 +44,100 @@ python3 -m pip install -r requirements.txt
 python3 dorkinator.py example.com
 ```
 
-`colorama` is optional—the tool still works without it, just without terminal colour.
+The export is written to `dorkinator-output/example.com_dorks.txt`.
 
-## Useful commands
+## Choose your workflow
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### Command line
+
+Best for a repeatable workflow, scope files, and automation.
 
 ```bash
-# Show the available query groups
+python3 dorkinator.py example.com \
+  --engine bing \
+  --categories api,cloud \
+  --format json
+```
+
+</td>
+<td width="50%" valign="top">
+
+### Browser workspace
+
+Best for quickly exploring one target visually.
+
+Open [index.html](index.html) in a modern browser. It works locally with no install or backend.
+
+</td>
+</tr>
+</table>
+
+## CLI reference
+
+```text
+python3 dorkinator.py TARGET [OPTIONS]
+```
+
+| Option | Description |
+| --- | --- |
+| `TARGET` | A domain such as `example.com`, or a newline-delimited file of domains |
+| `-e`, `--engine` | `google` (default) or `bing` |
+| `-c`, `--categories` | Comma-separated groups, for example `api,cloud`; defaults to `all` |
+| `-f`, `--format` | `txt` (default), `csv`, or `json` |
+| `-o`, `--output-dir` | Export directory; defaults to `dorkinator-output` |
+| `--list-categories` | List available query groups and exit |
+| `--no-color` | Disable ANSI terminal colour for scripts and CI |
+
+### Examples
+
+```bash
+# See the available query groups
 python3 dorkinator.py --list-categories
 
-# Create a focused JSON collection using Bing
+# Create a focused collection using Bing
 python3 dorkinator.py example.com --engine bing --categories api,cloud --format json
 
-# Process a newline-delimited scope file and write CSV files elsewhere
+# Process a scope file and export each domain as CSV
 python3 dorkinator.py domains.txt --format csv --output-dir exports
 
-# Use in CI/scripts without ANSI colour
+# Suitable for CI, pipes, and plain terminals
 python3 dorkinator.py example.com --no-color
 ```
 
-Exports default to `dorkinator-output/<domain>_dorks.txt`. TXT includes each query and URL; JSON and CSV retain domain and category metadata.
+## Query categories
 
-## Browser workspace
+| Group | Focus |
+| --- | --- |
+| `surface` | Indexed assets, files, and technology hints |
+| `cloud` | Public cloud, code-hosting, and sharing services |
+| `api` | API, GraphQL, OpenAPI, and documentation discovery |
+| `exposure` | Public indicators that merit manual review |
+| `endpoints` | Common application routes and error fingerprints |
 
-Open [index.html](index.html) in a modern browser for a no-install visual workspace. It provides category selection, Google/Bing switching, direct result links, and TXT/JSON downloads. Everything runs locally in the browser.
+## Output formats
 
-## Included categories
+| Format | Best for | Contents |
+| --- | --- | --- |
+| TXT | Manual review | Category, query, and clickable search URL |
+| CSV | Spreadsheets and tracking | One row per query with domain/category metadata |
+| JSON | Integrations and scripts | Structured collection of all generated entries |
 
-- `surface` — indexed assets, files, and exposed technology hints
-- `cloud` — public cloud, code-hosting, and sharing services
-- `api` — API, GraphQL, OpenAPI, and documentation discovery
-- `exposure` — public indicators that merit manual review
-- `endpoints` — common application routes and error fingerprints
+## Privacy
 
-## Safety and responsible use
+Dorkinator does not upload domains, retain targets, or call an API. The CLI writes local export files; the browser workspace generates collections in your browser. Opening a generated link is the point at which your browser contacts Google or Bing.
 
-Only run queries for domains you own or are explicitly authorised to assess. Generated search results are leads, not findings: validate scope, impact, and permissions before interacting with any result.
-
-## Tests
+## Verification
 
 ```bash
 python3 -m unittest -v
 ```
 
+The test suite covers domain normalisation, scope-file deduplication, unsafe path rejection, and generated URL encoding.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Released under the [MIT License](LICENSE).
